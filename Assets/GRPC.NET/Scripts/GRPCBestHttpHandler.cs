@@ -136,8 +136,8 @@ namespace GRPC.NET
             {
                 try
                 {
-                    // Copy what we have already available, we'll download the
-                    // rest later before completing the response if needed.
+                    // Copy what we have already available, we'll download the rest
+                    // async if needed in a streaming mode detached from the response.
                     while (stream.TryTake(out var buffer))
                     {
                         // Make sure that the buffer is released back to the BufferPool.
@@ -158,8 +158,8 @@ namespace GRPC.NET
                     return;
                 }
 
-                // Not all the data was available right away, so lets detatch
-                // the stream so we can consume the rest async in a Task.
+                // Not all the data was available right away, so lets detach
+                // the stream and consume the rest async in a Task.
                 stream.IsDetached = true;
                 Task.Run(async () =>
                 {
@@ -175,7 +175,7 @@ namespace GRPC.NET
                             }
                             else
                             {
-                                // The DownloadContentStream does not block, so we wait a bit.
+                                // The DownloadContentStream does not block, so wait a bit.
                                 await Task.Delay(ASYNC_READ_WAIT_MS, cancellationToken);
                             }
                         }

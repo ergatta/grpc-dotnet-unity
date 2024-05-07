@@ -52,7 +52,7 @@ namespace GRPC.NET
             return m_Buffer.Count > 0 || m_Flushed || m_Closed || NonBlockingRead;
         }
 
-        // avoid sending content-length=0 (EOF) by using -2 for chunked encoding
+        // Avoid sending content-length=0 (EOF) by using -2 for chunked encoding.
         public override long Length => -2;
 
         public override long Position
