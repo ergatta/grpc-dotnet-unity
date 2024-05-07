@@ -28,7 +28,7 @@ namespace GRPC.NET
             var readLength = 0;
             lock (m_Buffer)
             {
-                while (!ReadAvailable(count)) Monitor.Wait(m_Buffer);
+                while (!ReadAvailable()) Monitor.Wait(m_Buffer);
 
                 for (; readLength < count && m_Buffer.Count > 0; readLength++)
                     buffer[readLength] = m_Buffer.Dequeue();
@@ -42,14 +42,14 @@ namespace GRPC.NET
             return readLength;
         }
 
-        private bool ReadAvailable(int count)
+        private bool ReadAvailable()
         {
             if (m_Exception != null)
                 throw m_Exception;
 
             // Either we have data to read, or we got flushed (e.g. stream got closed)
             // or we are in non blocking read mode.
-            return m_Buffer.Count >= count || m_Flushed || m_Closed || NonBlockingRead;
+            return m_Buffer.Count > 0 || m_Flushed || m_Closed || NonBlockingRead;
         }
 
         // avoid sending content-length=0 (EOF) by using -2 for chunked encoding
