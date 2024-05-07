@@ -149,12 +149,14 @@ namespace GRPC.NET
                     if (stream.IsCompleted)
                     {
                         incomingDataStream.Close();
+                        stream.Dispose();
                         return;
                     }
                 }
                 catch (Exception e)
                 {
                     incomingDataStream.CloseWithException(e);
+                    stream.Dispose();
                     return;
                 }
 
@@ -179,11 +181,15 @@ namespace GRPC.NET
                                 await Task.Delay(ASYNC_READ_WAIT_MS, cancellationToken);
                             }
                         }
-                        incomingDataStream.Close();
                     }
                     catch (Exception e)
                     {
                         incomingDataStream.CloseWithException(e);
+                    }
+                    finally
+                    {
+                        stream.Dispose();
+                        incomingDataStream.Close();
                     }
                 }, cancellationToken: cancellationToken);
             };
