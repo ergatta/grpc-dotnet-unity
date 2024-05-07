@@ -68,8 +68,8 @@ namespace GRPC.NET
             {
                 grpcRequest.Content.ReadAsStreamAsync().ContinueWith(_ =>
                 {
-                        outgoingDataStream.Close();
-                    }, cancellationToken);
+                    outgoingDataStream.Close();
+                }, cancellationToken);
             };
 
             //
@@ -158,30 +158,30 @@ namespace GRPC.NET
                     // Detatch the stream so we can consume the rest async in a Task.
                     stream.IsDetached = true;
                     Task.Run(async () =>
-              {
-                    try
                     {
-                        while (!stream.IsCompleted)
+                        try
                         {
-                            if (stream.TryTake(out var buffer))
+                            while (!stream.IsCompleted)
                             {
-                              // Make sure that the buffer is released back to the BufferPool.
-                                using var b = buffer.AsAutoRelease();
-                                incomingDataStream.Write(b.Data, b.Offset, b.Count);
+                                if (stream.TryTake(out var buffer))
+                                {
+                                // Make sure that the buffer is released back to the BufferPool.
+                                    using var b = buffer.AsAutoRelease();
+                                    incomingDataStream.Write(b.Data, b.Offset, b.Count);
+                                }
+                                else
+                                {
+                                // The DownloadContentStream does not block, so we wait a bit.
+                                    await Task.Delay(ASYNC_READ_WAIT_MS);
+                                }
                             }
-                            else
-                            {
-                              // The DownloadContentStream does not block, so we wait a bit.
-                                await Task.Delay(ASYNC_READ_WAIT_MS);
-                            }
+                            incomingDataStream.Close();
                         }
-                        incomingDataStream.Close();
-                    }
-                    catch (Exception e)
-                    {
-                        incomingDataStream.CloseWithException(e);
-                    }
-                });
+                        catch (Exception e)
+                        {
+                            incomingDataStream.CloseWithException(e);
+                        }
+                    });
                 }
                 catch (Exception e)
                 {
