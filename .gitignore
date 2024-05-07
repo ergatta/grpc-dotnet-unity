@@ -294,3 +294,8 @@ gradle-app.setting
 
 # Never commit BestHTTP2 to git
 **/Best HTTP**
+
+ProjectSettings
+Packages
+.vscode
+com.Tivadar.Best.HTTP.xml

@@ -1,14 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Best.HTTP;
-using Best.HTTP.Response;
-using Unity.VisualScripting;
 
 namespace GRPC.NET
 {
@@ -51,10 +48,10 @@ namespace GRPC.NET
             // Create outgoing data stream
             PushPullStream outgoingDataStream = new()
             {
-                // BestHTTP does not perform blocking reads. Instead it will expect -1 to be returned if no data is yet
+                // BestHTTP does not perform blocking reads. Instead it will expect -2 to be returned if no data is yet
                 // available. Each time the internal loop is triggered it will try to read from the stream again to check
                 // if there is new data available.
-                // This is why we have to trigger Http2Handler on each new DATA package when the stream was flushed.
+                // This is why we have to trigger thread signal on each new DATA package when the stream was flushed.
                 NonBlockingRead = true
             };
             bestRequest.UploadSettings.UploadStream = outgoingDataStream;
@@ -165,13 +162,13 @@ namespace GRPC.NET
                             {
                                 if (stream.TryTake(out var buffer))
                                 {
-                                // Make sure that the buffer is released back to the BufferPool.
+                                    // Make sure that the buffer is released back to the BufferPool.
                                     using var b = buffer.AsAutoRelease();
                                     incomingDataStream.Write(b.Data, b.Offset, b.Count);
                                 }
                                 else
                                 {
-                                // The DownloadContentStream does not block, so we wait a bit.
+                                    // The DownloadContentStream does not block, so we wait a bit.
                                     await Task.Delay(ASYNC_READ_WAIT_MS);
                                 }
                             }
