@@ -48,7 +48,7 @@ namespace GRPC.NET
             // Create outgoing data stream
             PushPullStream outgoingDataStream = new()
             {
-                // BestHTTP does not perform blocking reads. Instead it will expect -2 to be returned if no data is yet
+                // BestHTTP does not perform blocking reads. Instead it will expect -1 to be returned if no data is yet
                 // available. Each time the internal loop is triggered it will try to read from the stream again to check
                 // if there is new data available.
                 // This is why we have to trigger thread signal on each new DATA package when the stream was flushed.
@@ -151,45 +151,48 @@ namespace GRPC.NET
                         incomingDataStream.Close();
                         return;
                     }
-
-                    // Detatch the stream so we can consume the rest async in a Task.
-                    stream.IsDetached = true;
-                    Task.Run(async () =>
-                    {
-                        try
-                        {
-                            while (!stream.IsCompleted)
-                            {
-                                if (stream.TryTake(out var buffer))
-                                {
-                                    // Make sure that the buffer is released back to the BufferPool.
-                                    using var b = buffer.AsAutoRelease();
-                                    incomingDataStream.Write(b.Data, b.Offset, b.Count);
-                                }
-                                else
-                                {
-                                    // The DownloadContentStream does not block, so we wait a bit.
-                                    await Task.Delay(ASYNC_READ_WAIT_MS);
-                                }
-                            }
-                            incomingDataStream.Close();
-                        }
-                        catch (Exception e)
-                        {
-                            incomingDataStream.CloseWithException(e);
-                        }
-                    });
                 }
                 catch (Exception e)
                 {
                     incomingDataStream.CloseWithException(e);
+                    return;
                 }
+
+                // Not all the data was available right away, so lets detatch
+                // the stream so we can consume the rest async in a Task.
+                stream.IsDetached = true;
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (!stream.IsCompleted)
+                        {
+                            if (stream.TryTake(out var buffer))
+                            {
+                                // Make sure that the buffer is released back to the BufferPool.
+                                using var b = buffer.AsAutoRelease();
+                                incomingDataStream.Write(b.Data, b.Offset, b.Count);
+                            }
+                            else
+                            {
+                                // The DownloadContentStream does not block, so we wait a bit.
+                                await Task.Delay(ASYNC_READ_WAIT_MS, cancellationToken);
+                            }
+                        }
+                        incomingDataStream.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        incomingDataStream.CloseWithException(e);
+                    }
+                }, cancellationToken: cancellationToken);
             };
 
             // When gRPC call is canceled by the application we abort the request
             var cancellationTokenRegistration = cancellationToken.Register(() =>
             {
                 bestRequest.Abort();
+                incomingDataStream.Close();
             });
 
             bestRequest.Callback += (request, response) =>
