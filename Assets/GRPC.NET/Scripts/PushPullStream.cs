@@ -31,7 +31,7 @@ namespace GRPC.NET
                 while (!ReadAvailable()) Monitor.Wait(m_Buffer);
 
                 for (; readLength < count && m_Buffer.Count > 0; readLength++)
-                    buffer[readLength] = m_Buffer.Dequeue();
+                    buffer[offset + readLength] = m_Buffer.Dequeue();
 
                 Monitor.Pulse(m_Buffer);
             }
